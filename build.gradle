@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.141'
+}
+
+base {
+    archivesName = "NeoSightAPI"
+    group = "cc.neonisch"
+    version = "1.0.0"
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = "21.1.202"
+
+    validateAccessTransformers = true
+
+    runs {
+        client {
+            client()
+        }
+        data {
+            data()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        "neosightapi" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+dependencies {
+    // JDK HttpServer 零依赖，不需要额外引入
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version      : "1.21.1",
+            minecraft_version_range: "[1.21, 1.21.2)",
+            neo_version            : "21.1.202",
+            neo_version_range      : "[21.1, 21.2)",
+            loader_version_range   : "[4,)",
+            mod_id                 : "neosightapi",
+            mod_name               : "NeoSightAPI",
+            mod_license            : "AGPL-3.0",
+            mod_version            : "0.1.0",
+            mod_authors            : "NeoNisch",
+            mod_description        : "Lightweight HTTP REST API mod for Minecraft server monitoring & event streaming"
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
