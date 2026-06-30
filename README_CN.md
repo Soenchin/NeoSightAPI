@@ -4,6 +4,8 @@
 
 NeoForge 1.21.1 服务端专用 HTTP REST API 模组。零外部依赖 — 基于 JDK `HttpServer` 实现。
 
+QQ交流群940358918
+
 端口：**8345**
 
 ## 快速开始
