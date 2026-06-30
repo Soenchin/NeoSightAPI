@@ -2,7 +2,7 @@
 
 > [中文文档](README_CN.md)
 
-Lightweight HTTP REST API mod for NeoForge 1.21.1 servers. Zero external dependencies — powered by JDK `HttpServer`.
+Lightweight HTTP REST API mod for NeoForge 1.21.x servers. Zero external dependencies — powered by JDK `HttpServer`.
 
 Port: **8345**
 
@@ -101,8 +101,8 @@ curl http://localhost:8345/api/chat?limit=10
 
 ## Requirements
 
-- Minecraft 1.21.1
-- NeoForge 21.1.202
+- Minecraft 1.21.1+ (tested on 1.21.1 and 1.21.4)
+- NeoForge 21.1+ (tested on 21.1.202 and 21.4.157)
 - Java 21+
 
 ## License

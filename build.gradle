@@ -6,7 +6,7 @@ plugins {
 base {
     archivesName = "NeoSightAPI"
     group = "cc.neonisch"
-    version = "1.0.0"
+    version = "1.0.1"
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -36,20 +36,20 @@ neoForge {
 }
 
 dependencies {
-    // JDK HttpServer 零依赖，不需要额外引入
+    // JDK HttpServer, zero external dependencies
 }
 
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             minecraft_version      : "1.21.1",
-            minecraft_version_range: "[1.21, 1.21.2)",
+            minecraft_version_range: "[1.21,1.22)",
             neo_version            : "21.1.202",
-            neo_version_range      : "[21.1, 21.2)",
+            neo_version_range      : "[21.1,22)",
             loader_version_range   : "[4,)",
             mod_id                 : "neosightapi",
             mod_name               : "NeoSightAPI",
             mod_license            : "AGPL-3.0",
-            mod_version            : "0.1.0",
+            mod_version            : "1.0.1",
             mod_authors            : "NeoNisch",
             mod_description        : "Lightweight HTTP REST API mod for Minecraft server monitoring & event streaming"
     ]

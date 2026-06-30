@@ -2,7 +2,7 @@
 
 > [English](README.md)
 
-NeoForge 1.21.1 服务端专用 HTTP REST API 模组。零外部依赖 — 基于 JDK `HttpServer` 实现。
+NeoForge 1.21.x 服务端专用 HTTP REST API 模组。零外部依赖 — 基于 JDK `HttpServer` 实现。
 
 QQ交流群940358918
 
@@ -103,8 +103,8 @@ curl http://localhost:8345/api/chat?limit=10
 
 ## 运行要求
 
-- Minecraft 1.21.1
-- NeoForge 21.1.202
+- Minecraft 1.21.1+ （已在 1.21.1 与 1.21.4 测试通过）
+- NeoForge 21.1+ （已在 21.1.202 与 21.4.157 测试通过）
 - Java 21+
 
 ## 许可证
