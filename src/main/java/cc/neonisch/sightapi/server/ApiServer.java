@@ -61,6 +61,24 @@ public class ApiServer {
 
         // ---- Chat history ----
         server.createContext("/api/chat", router::handleChatHistory);
+
+        // ---- Regions (list/create + /{id} delete) ----
+        server.createContext("/api/regions", exchange -> {
+            String path = exchange.getRequestURI().getPath();
+            String method = exchange.getRequestMethod();
+            if ("/api/regions".equals(path)) {
+                if ("POST".equals(method)) {
+                    router.handleRegionCreate(exchange);
+                } else {
+                    router.handleRegionList(exchange);
+                }
+            } else if (path.startsWith("/api/regions/")) {
+                String id = path.substring("/api/regions/".length());
+                router.handleRegionDelete(exchange, id);
+            } else {
+                router.handleRegionList(exchange);
+            }
+        });
     }
 
     public void start() {

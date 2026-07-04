@@ -10,10 +10,12 @@ import net.neoforged.fml.ModList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import cc.neonisch.sightapi.server.RegionStorage.Region;
+
 import java.io.*;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class ApiRouter {
 
@@ -337,6 +339,102 @@ public class ApiRouter {
     }
 
     // ========================================================================
+    // POST /api/regions — create region
+    // ========================================================================
+    public void handleRegionCreate(HttpExchange ex) throws IOException {
+        if (!"POST".equals(ex.getRequestMethod())) { send405(ex); return; }
+
+        RegionStorage storage = RegionStorage.getInstance();
+        if (storage == null) { send(ex, 503, "{\"error\":\"Region storage not available\"}"); return; }
+
+        String body = readBody(ex);
+        String name      = parseJsonField(body, "name");
+        String owner     = parseJsonField(body, "owner");
+        String dimension = parseJsonField(body, "dimension");
+        if (name == null || name.isEmpty())      { send400(ex, "Field 'name' required"); return; }
+        if (owner == null || owner.isEmpty())     { send400(ex, "Field 'owner' required"); return; }
+        if (dimension == null || dimension.isEmpty()) { send400(ex, "Field 'dimension' required"); return; }
+
+        int x1 = parseIntField(body, "x1", 0);
+        int z1 = parseIntField(body, "z1", 0);
+        int x2 = parseIntField(body, "x2", 0);
+        int z2 = parseIntField(body, "z2", 0);
+        String label = parseJsonField(body, "label");
+
+        Region r = storage.create(name, owner, dimension, x1, z1, x2, z2, label);
+
+        byte[] bytes = r.toJson().getBytes(StandardCharsets.UTF_8);
+        ex.getResponseHeaders().set("Content-Type", JSON);
+        ex.sendResponseHeaders(201, bytes.length);
+        try (OutputStream os = ex.getResponseBody()) { os.write(bytes); }
+    }
+
+    // ========================================================================
+    // GET /api/regions — list all, or GET /api/regions?x=X&z=Z&dim=DIM
+    // ========================================================================
+    public void handleRegionList(HttpExchange ex) throws IOException {
+        if (!"GET".equals(ex.getRequestMethod())) { send405(ex); return; }
+
+        RegionStorage storage = RegionStorage.getInstance();
+        if (storage == null) { send(ex, 503, "{\"error\":\"Region storage not available\"}"); return; }
+
+        // Check for coordinate query params
+        Map<String, String> params = parseQuery(ex.getRequestURI());
+        String xParam = params.get("x");
+        String zParam = params.get("z");
+        String dimParam = params.get("dim");
+
+        List<Region> results;
+        if (xParam != null && zParam != null && dimParam != null) {
+            try {
+                int x = Integer.parseInt(xParam);
+                int z = Integer.parseInt(zParam);
+                results = storage.findAt(x, z, dimParam);
+            } catch (NumberFormatException e) {
+                send400(ex, "Invalid coordinate values"); return;
+            }
+        } else {
+            results = storage.listAll();
+        }
+
+        StringBuilder sb = new StringBuilder(512);
+        sb.append("[");
+        boolean first = true;
+        for (Region r : results) {
+            if (!first) sb.append(",");
+            first = false;
+            sb.append(r.toJson());
+        }
+        sb.append("]");
+
+        respondJson(ex, sb.toString());
+    }
+
+    // ========================================================================
+    // DELETE /api/regions/{id} — delete region (with owner check)
+    // ========================================================================
+    public void handleRegionDelete(HttpExchange ex, String id) throws IOException {
+        if (!"DELETE".equals(ex.getRequestMethod())) { send405(ex); return; }
+        if (id == null || id.isEmpty()) { send400(ex, "Region ID required"); return; }
+
+        RegionStorage storage = RegionStorage.getInstance();
+        if (storage == null) { send(ex, 503, "{\"error\":\"Region storage not available\"}"); return; }
+
+        String body = readBody(ex);
+        String owner = parseJsonField(body, "owner");
+        if (owner == null || owner.isEmpty()) { send400(ex, "Field 'owner' required"); return; }
+
+        boolean deleted = storage.delete(id, owner);
+        if (!deleted) {
+            send404(ex, "Region not found or owner mismatch: " + id);
+            return;
+        }
+
+        ex.sendResponseHeaders(204, -1);
+        ex.getResponseBody().close();
+    }
+
+    // ========================================================================
     // Helpers
     // ========================================================================
 
@@ -377,6 +475,35 @@ public class ApiRouter {
         int j = json.indexOf("\"", i + 1);
         if (j < 0) return null;
         return json.substring(i + 1, j);
+    }
+
+    /** Extract an integer field value from JSON: {"key":123} */
+    private static int parseIntField(String json, String field, int def) {
+        String search = "\"" + field + "\"";
+        int i = json.indexOf(search);
+        if (i < 0) return def;
+        i = json.indexOf(":", i + search.length());
+        if (i < 0) return def;
+        i++;
+        while (i < json.length() && json.charAt(i) == ' ') i++;
+        int j = i;
+        while (j < json.length() && (Character.isDigit(json.charAt(j)) || json.charAt(j) == '-')) j++;
+        if (j == i) return def;
+        try { return Integer.parseInt(json.substring(i, j)); } catch (NumberFormatException e) { return def; }
+    }
+
+    /** Parse URI query parameters into a map. */
+    private static Map<String, String> parseQuery(URI uri) {
+        Map<String, String> map = new HashMap<>();
+        String query = uri.getQuery();
+        if (query == null || query.isEmpty()) return map;
+        for (String param : query.split("&")) {
+            int eq = param.indexOf('=');
+            if (eq > 0) {
+                map.put(param.substring(0, eq), param.substring(eq + 1));
+            }
+        }
+        return map;
     }
 
     // ---- response helpers ----
