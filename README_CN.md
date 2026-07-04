@@ -72,6 +72,17 @@ gradlew.bat build    # Windows（双击即可）
 |--------|------|------|
 | `GET` | `/api/chat?limit=20` | 最近聊天记录（最多 100 条）。字段：player、message、timestamp |
 
+### 区域 *(v1.0.3+)*
+
+| 方法 | 路径 | 说明 |
+|--------|------|------|
+| `POST` | `/api/regions` | 创建区域。Body：`{"name":"...", "owner":"...", "dimension":"minecraft:overworld", "x1":0, "z1":0, "x2":50, "z2":50, "label":"..."}` |
+| `GET` | `/api/regions` | 列出所有区域 |
+| `GET` | `/api/regions?x=X&z=Z&dim=DIM` | 查询包含指定坐标的区域 |
+| `DELETE` | `/api/regions/{id}` | 删除区域（需 owner 验证）。Body：`{"owner":"..."}` |
+
+区域数据持久化存储在 `config/neosight/regions.json`。
+
 ## 请求示例
 
 ```bash
@@ -99,6 +110,17 @@ curl -N http://localhost:8345/api/events
 
 # 聊天记录（最近 10 条）
 curl http://localhost:8345/api/chat?limit=10
+
+# 创建区域
+curl -X POST http://localhost:8345/api/regions \
+  -H "Content-Type: application/json" \
+  -d '{"name":"我的基地","owner":"Steve","dimension":"minecraft:overworld","x1":100,"z1":50,"x2":150,"z2":100,"label":"主基地"}'
+
+# 查询坐标所在区域
+curl "http://localhost:8345/api/regions?x=120&z=75&dim=minecraft:overworld"
+
+# 列出所有区域
+curl http://localhost:8345/api/regions
 ```
 
 ## 运行要求
