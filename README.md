@@ -70,6 +70,17 @@ All responses are `application/json` unless noted otherwise.
 |--------|------|-------------|
 | `GET` | `/api/chat?limit=20` | Recent chat history (max 100 entries). Fields: player, message, timestamp |
 
+### Regions *(v1.0.3+)*
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/regions` | Create a region. Body: `{"name":"...", "owner":"...", "dimension":"minecraft:overworld", "x1":0, "z1":0, "x2":50, "z2":50, "label":"..."}` |
+| `GET` | `/api/regions` | List all regions |
+| `GET` | `/api/regions?x=X&z=Z&dim=DIM` | Find regions containing the given XZ coordinate |
+| `DELETE` | `/api/regions/{id}` | Delete a region (owner-verified). Body: `{"owner":"..."}` |
+
+Region data is persisted to `config/neosight/regions.json`.
+
 ## Example Requests
 
 ```bash
@@ -97,6 +108,17 @@ curl -N http://localhost:8345/api/events
 
 # Chat history (last 10)
 curl http://localhost:8345/api/chat?limit=10
+
+# Create a region
+curl -X POST http://localhost:8345/api/regions \
+  -H "Content-Type: application/json" \
+  -d '{"name":"MyBase","owner":"Steve","dimension":"minecraft:overworld","x1":100,"z1":50,"x2":150,"z2":100,"label":"Main base"}'
+
+# Find regions at coordinates
+curl "http://localhost:8345/api/regions?x=120&z=75&dim=minecraft:overworld"
+
+# List all regions
+curl http://localhost:8345/api/regions
 ```
 
 ## Requirements
