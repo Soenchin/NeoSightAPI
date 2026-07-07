@@ -12,6 +12,12 @@ import org.slf4j.LoggerFactory;
 
 import cc.neonisch.sightapi.server.RegionStorage.Region;
 
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
+
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -435,6 +441,131 @@ public class ApiRouter {
     }
 
     // ========================================================================
+    // GET /api/players/{name}/inventory — player inventory
+    // ========================================================================
+    public void handlePlayerInventory(HttpExchange ex, String name) throws IOException {
+        if (!"GET".equals(ex.getRequestMethod())) { send405(ex); return; }
+        if (name == null || name.isEmpty()) { send400(ex, "Player name required"); return; }
+
+        String json = MinecraftBridge.runOnServer(() -> {
+            ServerPlayer p = findPlayer(name);
+            if (p == null) return null;
+
+            Inventory inv = p.getInventory();
+            StringBuilder sb = new StringBuilder(512);
+            sb.append("{\"player\":\"").append(esc(name)).append("\",\"slots\":[");
+            boolean first = true;
+            for (int i = 0; i < inv.getContainerSize(); i++) {
+                ItemStack stack = inv.getItem(i);
+                if (stack.isEmpty()) continue;
+                if (!first) sb.append(",");
+                first = false;
+                sb.append("{\"slot\":").append(i);
+                sb.append(",\"item\":\"").append(esc(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString())).append("\"");
+                sb.append(",\"count\":").append(stack.getCount());
+                sb.append(",\"name\":\"").append(esc(stack.getDisplayName().getString())).append("\"");
+                sb.append("}");
+            }
+            sb.append("]}");
+            return sb.toString();
+        });
+
+        if (json == null) { send404(ex, "Player not online: " + name); return; }
+        respondJson(ex, json);
+    }
+
+    // ========================================================================
+    // GET /api/worlds/{dim}/entities — entity list with optional range filter
+    // ========================================================================
+    public void handleWorldEntities(HttpExchange ex, String dim) throws IOException {
+        if (!"GET".equals(ex.getRequestMethod())) { send405(ex); return; }
+        if (dim == null || dim.isEmpty()) { send400(ex, "Dimension ID required"); return; }
+
+        // Parse optional range filter params
+        Map<String, String> params = parseQuery(ex.getRequestURI());
+        Double filterX = parseDoubleParam(params, "x");
+        Double filterZ = parseDoubleParam(params, "z");
+        double radius = 100.0;
+        if (params.containsKey("radius")) {
+            try { radius = Double.parseDouble(params.get("radius")); } catch (NumberFormatException ignored) {}
+        }
+
+        final Double fx = filterX;
+        final Double fz = filterZ;
+        final double r = radius;
+
+        String json = MinecraftBridge.runOnServer(() -> {
+            ServerLevel level = findLevel(dim);
+            if (level == null) return null;
+
+            Iterable<Entity> entities;
+            if (fx != null && fz != null) {
+                AABB box = new AABB(fx - r, -64, fz - r, fx + r, 320, fz + r);
+                entities = level.getEntities(null, box);
+            } else {
+                entities = level.getAllEntities();
+            }
+
+            StringBuilder sb = new StringBuilder(4096);
+            sb.append("{\"dimension\":\"").append(esc(dim)).append("\",\"entities\":[");
+            boolean first = true;
+            int count = 0;
+            for (Entity entity : entities) {
+                if (!first) sb.append(",");
+                first = false;
+                sb.append("{\"type\":\"").append(esc(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString())).append("\"");
+                sb.append(",\"name\":\"").append(esc(entity.getName().getString())).append("\"");
+                sb.append(",\"x\":").append(entity.getX());
+                sb.append(",\"y\":").append(entity.getY());
+                sb.append(",\"z\":").append(entity.getZ());
+                sb.append(",\"uuid\":\"").append(entity.getUUID()).append("\"");
+                sb.append(",\"alive\":").append(entity.isAlive());
+                sb.append("}");
+                count++;
+            }
+            sb.append("],\"count\":").append(count).append("}");
+            return sb.toString();
+        });
+
+        if (json == null) { send404(ex, "Dimension not found: " + dim); return; }
+        respondJson(ex, json);
+    }
+
+    // ========================================================================
+    // GET /api/metrics — historical TPS/MSPT/player metrics
+    // ========================================================================
+    public void handleMetricsHistory(HttpExchange ex) throws IOException {
+        if (!"GET".equals(ex.getRequestMethod())) { send405(ex); return; }
+
+        String query = ex.getRequestURI().getQuery();
+        int limit = 720;
+        if (query != null) {
+            for (String param : query.split("&")) {
+                if (param.startsWith("limit=")) {
+                    try { limit = Integer.parseInt(param.substring(6)); } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        limit = Math.min(limit, 720);
+
+        List<MinecraftBridge.MetricSample> samples = MinecraftBridge.getMetricsHistory(limit);
+        StringBuilder sb = new StringBuilder(samples.size() * 64);
+        sb.append("{\"samples\":[");
+        boolean first = true;
+        for (MinecraftBridge.MetricSample s : samples) {
+            if (!first) sb.append(",");
+            first = false;
+            sb.append("{\"timestamp\":").append(s.epochMillis());
+            sb.append(",\"tps\":").append(s.tps());
+            sb.append(",\"mspt\":").append(s.mspt());
+            sb.append(",\"players\":").append(s.playerCount());
+            sb.append("}");
+        }
+        sb.append("]}");
+        respondJson(ex, sb.toString());
+    }
+
+    // ========================================================================
     // Helpers
     // ========================================================================
 
@@ -490,6 +621,13 @@ public class ApiRouter {
         while (j < json.length() && (Character.isDigit(json.charAt(j)) || json.charAt(j) == '-')) j++;
         if (j == i) return def;
         try { return Integer.parseInt(json.substring(i, j)); } catch (NumberFormatException e) { return def; }
+    }
+
+    /** Parse a double query parameter, or null if absent/invalid. */
+    private static Double parseDoubleParam(Map<String, String> params, String key) {
+        String val = params.get(key);
+        if (val == null) return null;
+        try { return Double.parseDouble(val); } catch (NumberFormatException e) { return null; }
     }
 
     /** Parse URI query parameters into a map. */

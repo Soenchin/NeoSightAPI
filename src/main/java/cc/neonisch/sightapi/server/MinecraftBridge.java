@@ -30,6 +30,10 @@ public final class MinecraftBridge {
     private static final int MAX_CHAT = 100;
     private static final List<ChatEntry> chatLog = new CopyOnWriteArrayList<>();
 
+    // ---- Metrics ring buffer (thread-safe, 10s interval × 720 = 2 hours) ----
+    private static final int MAX_METRICS = 720;
+    private static final List<MetricSample> metricsLog = new CopyOnWriteArrayList<>();
+
     // ========================================================================
     // Thread bridge
     // ========================================================================
@@ -128,10 +132,30 @@ public final class MinecraftBridge {
     }
 
     // ========================================================================
+    // Metrics history
+    // ========================================================================
+
+    public static void addMetric(MetricSample sample) {
+        if (metricsLog.size() >= MAX_METRICS) {
+            metricsLog.remove(0);
+        }
+        metricsLog.add(sample);
+    }
+
+    /** Return the most recent {@code limit} metric samples, newest last. */
+    public static List<MetricSample> getMetricsHistory(int limit) {
+        int size = metricsLog.size();
+        int from = Math.max(0, size - limit);
+        return new ArrayList<>(metricsLog.subList(from, size));
+    }
+
+    // ========================================================================
     // Data records
     // ========================================================================
 
     public record SSEConnection(OutputStream out) {}
 
     public record ChatEntry(String player, String message, long epochMillis) {}
+
+    public record MetricSample(long epochMillis, float tps, float mspt, int playerCount) {}
 }

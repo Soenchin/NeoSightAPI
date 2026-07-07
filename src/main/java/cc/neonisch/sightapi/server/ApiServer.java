@@ -26,11 +26,15 @@ public class ApiServer {
         server.createContext("/api/server", router::handleServer);
         server.createContext("/api/server/mods", router::handleServerMods);
 
-        // ---- Players (list + /{name}) ----
+        // ---- Players (list + /{name} + /{name}/inventory) ----
         server.createContext("/api/players", exchange -> {
             String path = exchange.getRequestURI().getPath();
             if ("/api/players".equals(path)) {
                 router.handlePlayerList(exchange);
+            } else if (path.endsWith("/inventory")) {
+                String rest = path.substring("/api/players/".length());
+                String name = rest.substring(0, rest.length() - "/inventory".length());
+                router.handlePlayerInventory(exchange, name);
             } else if (path.startsWith("/api/players/")) {
                 String name = path.substring("/api/players/".length());
                 router.handlePlayerInfo(exchange, name);
@@ -39,7 +43,7 @@ public class ApiServer {
             }
         });
 
-        // ---- Worlds (list / /{dim} / /{dim}/time) ----
+        // ---- Worlds (list / /{dim} / /{dim}/time / /{dim}/entities) ----
         server.createContext("/api/worlds", exchange -> {
             String path = exchange.getRequestURI().getPath();
             if ("/api/worlds".equals(path)) {
@@ -47,6 +51,9 @@ public class ApiServer {
             } else if (path.endsWith("/time")) {
                 String dim = path.substring("/api/worlds/".length(), path.length() - "/time".length());
                 router.handleWorldTime(exchange, dim);
+            } else if (path.endsWith("/entities")) {
+                String dim = path.substring("/api/worlds/".length(), path.length() - "/entities".length());
+                router.handleWorldEntities(exchange, dim);
             } else {
                 String dim = path.substring("/api/worlds/".length());
                 router.handleWorldInfo(exchange, dim);
@@ -61,6 +68,9 @@ public class ApiServer {
 
         // ---- Chat history ----
         server.createContext("/api/chat", router::handleChatHistory);
+
+        // ---- Metrics (historical TPS/MSPT/player count) ----
+        server.createContext("/api/metrics", router::handleMetricsHistory);
 
         // ---- Regions (list/create + /{id} delete) ----
         server.createContext("/api/regions", exchange -> {

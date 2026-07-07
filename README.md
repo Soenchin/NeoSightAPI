@@ -43,6 +43,7 @@ All responses are `application/json` unless noted otherwise.
 |--------|------|-------------|
 | `GET` | `/api/players` | Online player list: name, UUID, ping, dimension, gamemode |
 | `GET` | `/api/players/{name}` | Player detail: position (x/y/z), health, food, saturation, XP, dimension, gamemode, ping |
+| `GET` | `/api/players/{name}/inventory` | Player inventory: all non-empty slots with item ID, display name, count |
 
 ### Worlds
 
@@ -50,6 +51,7 @@ All responses are `application/json` unless noted otherwise.
 |--------|------|-------------|
 | `GET` | `/api/worlds` | Dimension list: id, player count, day time, rain/thunder status |
 | `GET` | `/api/worlds/{dim}` | Dimension detail: day/game time, rain/thunder, loaded chunks, players, seed, difficulty |
+| `GET` | `/api/worlds/{dim}/entities` | Entity list for dimension. Optional query params: `x`, `z`, `radius` (default 100) for range filtering |
 | `POST` | `/api/worlds/{dim}/time` | Set world time. Body: `{"time": "day"}` or `{"time": "6000"}`. Aliases: day, noon, sunset, night, midnight, sunrise |
 
 ### Command
@@ -69,6 +71,12 @@ All responses are `application/json` unless noted otherwise.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/api/chat?limit=20` | Recent chat history (max 100 entries). Fields: player, message, timestamp |
+
+### Metrics *(v1.1.0+)*
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/metrics` | Historical TPS/MSPT/player count metrics. Sampled every 10s, retains last 2 hours (720 entries). Optional query param: `limit` |
 
 ### Regions *(v1.0.3+)*
 
@@ -108,6 +116,18 @@ curl -N http://localhost:8345/api/events
 
 # Chat history (last 10)
 curl http://localhost:8345/api/chat?limit=10
+
+# Player inventory
+curl http://localhost:8345/api/players/Steve/inventory
+
+# All entities in dimension
+curl http://localhost:8345/api/worlds/minecraft:overworld/entities
+
+# Entities in range (centered at 100,64, radius 50)
+curl "http://localhost:8345/api/worlds/minecraft:overworld/entities?x=100&z=64&radius=50"
+
+# Historical metrics (last 60 samples)
+curl http://localhost:8345/api/metrics?limit=60
 
 # Create a region
 curl -X POST http://localhost:8345/api/regions \

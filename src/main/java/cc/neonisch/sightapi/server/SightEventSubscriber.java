@@ -1,18 +1,25 @@
 package cc.neonisch.sightapi.server;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.ServerChatEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.AdvancementEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 /**
  * Subscribes to NeoForge events and pushes them as SSE broadcasts
  * via {@link MinecraftBridge}.
  */
 public class SightEventSubscriber {
+
+    // 200 ticks = 10 seconds (Minecraft runs at 20 TPS)
+    private static final int METRICS_SAMPLE_INTERVAL = 200;
+    private int tickCounter = 0;
 
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
@@ -56,6 +63,22 @@ public class SightEventSubscriber {
         MinecraftBridge.addChat(entry);
         MinecraftBridge.broadcastSSE("chat",
                 jsonObj("player", player, "message", message, "timestamp", String.valueOf(now)));
+    }
+
+    @SubscribeEvent
+    public void onServerTick(ServerTickEvent.Post event) {
+        if (++tickCounter < METRICS_SAMPLE_INTERVAL) return;
+        tickCounter = 0;
+
+        MinecraftServer srv = ServerLifecycleHooks.getCurrentServer();
+        if (srv == null || !srv.isRunning()) return;
+
+        float mspt = srv.getCurrentSmoothedTickTime();
+        float tps  = Math.min(20.0f, 1000.0f / Math.max(mspt, 0.001f));
+        int players = srv.getPlayerCount();
+
+        MinecraftBridge.addMetric(
+                new MinecraftBridge.MetricSample(System.currentTimeMillis(), tps, mspt, players));
     }
 
     // ---- mini JSON builder (zero-dependency) ----

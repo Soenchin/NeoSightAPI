@@ -45,6 +45,7 @@ gradlew.bat build    # Windows（双击即可）
 |--------|------|------|
 | `GET` | `/api/players` | 在线玩家列表：名字、UUID、延迟、维度、游戏模式 |
 | `GET` | `/api/players/{name}` | 玩家详情：坐标 (x/y/z)、生命、饱腹度、饱和度、经验、维度、游戏模式、延迟 |
+| `GET` | `/api/players/{name}/inventory` | 玩家背包：所有非空槽位的物品 ID、显示名、数量 |
 
 ### 世界
 
@@ -52,6 +53,7 @@ gradlew.bat build    # Windows（双击即可）
 |--------|------|------|
 | `GET` | `/api/worlds` | 维度列表：ID、玩家人数、白天时间、下雨/打雷状态 |
 | `GET` | `/api/worlds/{dim}` | 维度详情：白天/游戏时间、下雨/打雷、已加载区块、玩家、种子、难度 |
+| `GET` | `/api/worlds/{dim}/entities` | 维度实体列表。可选查询参数：`x`、`z`、`radius`（默认100）按坐标范围过滤 |
 | `POST` | `/api/worlds/{dim}/time` | 设置世界时间。Body：`{"time": "day"}` 或 `{"time": "6000"}`。时间别名：day / noon / sunset / night / midnight / sunrise |
 
 ### 命令
@@ -71,6 +73,12 @@ gradlew.bat build    # Windows（双击即可）
 | 方法 | 路径 | 说明 |
 |--------|------|------|
 | `GET` | `/api/chat?limit=20` | 最近聊天记录（最多 100 条）。字段：player、message、timestamp |
+
+### 指标 *(v1.1.0+)*
+
+| 方法 | 路径 | 说明 |
+|--------|------|------|
+| `GET` | `/api/metrics` | 历史 TPS/MSPT/玩家数指标。每 10 秒采样一次，保留最近 2 小时（720 条）。可选查询参数：`limit` |
 
 ### 区域 *(v1.0.3+)*
 
@@ -110,6 +118,18 @@ curl -N http://localhost:8345/api/events
 
 # 聊天记录（最近 10 条）
 curl http://localhost:8345/api/chat?limit=10
+
+# 玩家背包
+curl http://localhost:8345/api/players/Steve/inventory
+
+# 维度全部实体
+curl http://localhost:8345/api/worlds/minecraft:overworld/entities
+
+# 范围内实体（以 100,64 为中心，半径 50）
+curl "http://localhost:8345/api/worlds/minecraft:overworld/entities?x=100&z=64&radius=50"
+
+# 历史指标（最近 60 条）
+curl http://localhost:8345/api/metrics?limit=60
 
 # 创建区域
 curl -X POST http://localhost:8345/api/regions \
