@@ -13,6 +13,7 @@ build/
 .project
 .classpath
 .settings/
+.eclipse/
 
 # == OS ==
 .DS_Store
